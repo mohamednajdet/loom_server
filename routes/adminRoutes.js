@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const Admin = require('../models/admin');
 const User = require('../models/user');
 const Order = require('../models/order');
 const verifyAdmin = require('../middleware/verifyAdmin');
@@ -10,15 +9,16 @@ const verifyAdmin = require('../middleware/verifyAdmin');
 router.post('/login', async (req, res) => {
   const { phone } = req.body;
   try {
-    const admin = await Admin.findOne({ phone });
-    if (!admin) {
+    const admin = await User.findOne({ phone });
+
+    if (!admin || admin.role !== 'admin') {
       return res.status(401).json({ message: 'رقم الهاتف غير مسجل كأدمن' });
     }
 
     const token = jwt.sign(
       {
-        adminId: admin._id,
-        isAdmin: true,
+        userId: admin._id,
+        role: admin.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
@@ -96,7 +96,7 @@ router.get('/user-summary', verifyAdmin, async (req, res) => {
 router.put('/ban-user/:userId', verifyAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { ban } = req.body; // true = حظر، false = رفع حظر
+    const { ban } = req.body;
 
     if (typeof ban !== 'boolean') {
       return res.status(400).json({ message: 'قيمة الحظر يجب أن تكون true أو false' });
@@ -114,7 +114,7 @@ router.put('/ban-user/:userId', verifyAdmin, async (req, res) => {
 
     res.status(200).json({
       message: ban ? '🚫 تم حظر المستخدم من قبل الأدمن' : '✅ تم رفع الحظر عن المستخدم',
-      user
+      user,
     });
   } catch (error) {
     res.status(500).json({ message: 'فشل في تحديث حالة الحظر', error: error.message });

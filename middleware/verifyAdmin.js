@@ -10,11 +10,11 @@ const verifyAdmin = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decoded.isAdmin) {
+    if (decoded.role !== 'admin') {
       return res.status(403).json({ message: 'صلاحيات غير كافية (مو أدمن)' });
     }
 
-    req.user = decoded;
+    req.user = decoded; // نمرر معلومات المستخدم للراوتات الجاية
     next();
   } catch {
     res.status(403).json({ message: 'توكن غير صالح' });

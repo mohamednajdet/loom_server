@@ -1,12 +1,13 @@
 // redisClient.js
-import { createClient } from 'redis';
+const { createClient } = require('redis');
+require('dotenv').config();
 
 const redisClient = createClient({
   username: 'default',
-  password: '8cShvJ1gDXcfeN5Oj7vDoiAv4pFsGDZZ',
+  password: process.env.REDIS_PASSWORD,
   socket: {
-    host: 'redis-18228.c274.us-east-1-3.ec2.redns.redis-cloud.com',
-    port: 18228,
+    host: process.env.REDIS_HOST,
+    port: Number(process.env.REDIS_PORT),
   },
 });
 
@@ -23,4 +24,4 @@ redisClient.on('error', (err) => {
   }
 })();
 
-export default redisClient;
+module.exports = redisClient;

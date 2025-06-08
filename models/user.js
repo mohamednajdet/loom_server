@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true, // ✅ لازم الاسم يتخزن
+    required: true,
   },
   phone: {
     type: String,
@@ -15,9 +15,10 @@ const userSchema = new mongoose.Schema({
     enum: ['male', 'female'],
     required: true,
   },
-  isAdmin: {
-    type: Boolean,
-    default: false,
+  role: {
+    type: String,
+    enum: ['user', 'admin'], // نحدد نوع الدور
+    default: 'user',
   },
   isBanned: {
     type: Boolean,

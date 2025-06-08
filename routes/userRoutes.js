@@ -6,19 +6,25 @@ const User = require('../models/user');
 // ✅ إنشاء حساب جديد
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, gender } = req.body;
+    const { name, phone, gender, role } = req.body;
     const existingUser = await User.findOne({ phone });
 
     if (existingUser) {
       return res.status(400).json({ message: 'المستخدم مسجل من قبل' });
     }
 
-    const newUser = new User({ name, phone, gender });
+    const newUser = new User({ name, phone, gender, role: role || 'user' });
     await newUser.save();
 
-    res.status(201).json({ message: 'تم إنشاء المستخدم بنجاح ✅', user: newUser });
+    return res.status(201).json({
+      message: 'تم إنشاء المستخدم بنجاح ✅',
+      user: newUser,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ غير متوقع، يرجى المحاولة لاحقًا', error: error.message });
+    return res.status(500).json({
+      message: 'حدث خطأ غير متوقع، يرجى المحاولة لاحقًا',
+      error: error.message,
+    });
   }
 });
 
@@ -36,27 +42,30 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({
         message: 'تم حظرك من استخدام التطبيق ❌',
         supportMessage: 'للمساعدة تواصل مع خدمة العملاء عبر واتساب:',
-        whatsappLink: 'https://wa.me/9647856863932'
+        whatsappLink: 'https://wa.me/9647856863932',
       });
     }
 
     const token = jwt.sign(
       {
         userId: user._id,
-        isAdmin: user.isAdmin,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'تم تسجيل الدخول بنجاح',
       user,
-      role: user.isAdmin ? 'admin' : 'user',
+      role: user.role,
       token,
     });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء تسجيل الدخول', error: error.message });
+    return res.status(500).json({
+      message: 'حدث خطأ أثناء تسجيل الدخول',
+      error: error.message,
+    });
   }
 });
 
@@ -66,11 +75,14 @@ router.get('/', async (req, res) => {
     const users = await User.find().sort({ createdAt: -1 });
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: 'فشل في جلب المستخدمين', error: error.message });
+    res.status(500).json({
+      message: 'فشل في جلب المستخدمين',
+      error: error.message,
+    });
   }
 });
 
-// ✅ تعديل المفضلة (إضافة أو حذف)
+// ✅ تعديل المفضلة
 router.put('/favorites/:userId', async (req, res) => {
   try {
     const { productId } = req.body;
@@ -87,7 +99,10 @@ router.put('/favorites/:userId', async (req, res) => {
     await user.save();
     res.status(200).json({ favorites: user.favorites });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء تعديل المفضلة', error: error.message });
+    res.status(500).json({
+      message: 'حدث خطأ أثناء تعديل المفضلة',
+      error: error.message,
+    });
   }
 });
 
@@ -99,7 +114,10 @@ router.get('/favorites/:userId', async (req, res) => {
 
     res.status(200).json({ favorites: user.favorites });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء جلب المفضلة', error: error.message });
+    res.status(500).json({
+      message: 'حدث خطأ أثناء جلب المفضلة',
+      error: error.message,
+    });
   }
 });
 
@@ -118,7 +136,10 @@ router.delete('/favorites/:userId/:productId', async (req, res) => {
 
     res.status(200).json({ message: 'تم حذف المنتج من المفضلة بنجاح' });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء حذف المنتج من المفضلة', error: error.message });
+    res.status(500).json({
+      message: 'حدث خطأ أثناء حذف المنتج من المفضلة',
+      error: error.message,
+    });
   }
 });
 
@@ -133,7 +154,29 @@ router.delete('/:userId', async (req, res) => {
 
     res.status(200).json({ message: 'تم حذف الحساب نهائيًا' });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء حذف الحساب', error: error.message });
+    res.status(500).json({
+      message: 'حدث خطأ أثناء حذف الحساب',
+      error: error.message,
+    });
+  }
+});
+
+// ✅ التحقق من وجود رقم الهاتف قبل الإرسال
+router.post('/check-phone', async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: 'رقم الهاتف مطلوب' });
+    }
+
+    const user = await User.findOne({ phone });
+    const exists = !!user;
+
+    res.status(200).json({ exists });
+  } catch (error) {
+    console.error('Check Phone Error:', error);
+    res.status(500).json({ message: 'فشل التحقق من رقم الهاتف', error: error.message });
   }
 });
 
