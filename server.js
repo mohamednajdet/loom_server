@@ -11,11 +11,16 @@ const favoriteRoutes = require('./routes/favoriteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const cartRoutes = require('./routes/cartRoutes');
-const sendOtpRoutes = require('./routes/sendOtp'); // ✅ راوت التحقق
+const sendOtpRoutes = require('./routes/sendOtp');
+const mapboxRoutes = require('./routes/mapboxRoutes');
+const addressRoutes = require('./routes/addressRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes'); // ✅ راوت الشكاوى
+const surveyRoutes = require('./routes/surveyRoutes'); // ✅  راوت الاستبيانات
+
 
 const app = express();
 
-// ✅ إعداد الاتصال بقاعدة البيانات MongoDB
+// ✅ الاتصال بقاعدة البيانات
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch((error) => console.error('❌ MongoDB connection failed:', error));
@@ -23,17 +28,22 @@ mongoose.connect(process.env.MONGO_URI)
 app.use(cors());
 app.use(express.json());
 
-// ✅ ربط الراوتات
+// ✅ الراوتات الرئيسية
 app.use('/api/users', userRoutes);           // المستخدمين
-app.use('/api/users', sendOtpRoutes);        // OTP (ضمن المستخدمين)
+app.use('/api/users', sendOtpRoutes);        // OTP
 app.use('/api/products', productRoutes);     // المنتجات
 app.use('/api/orders', orderRoutes);         // الطلبات
 app.use('/api/favorites', favoriteRoutes);   // المفضلة
 app.use('/api/admin', adminRoutes);          // الأدمن
 app.use('/api/upload', uploadRoutes);        // رفع الصور
 app.use('/api/cart', cartRoutes);            // السلة
+app.use('/api/mapbox', mapboxRoutes);        // خريطة
+app.use('/api/addresses', addressRoutes);    // العناوين
+app.use('/api/feedback', feedbackRoutes);    // ✅ الشكاوى والاقتراحات
+app.use('/api/surveys', surveyRoutes); // لاحظ جمع surveys
 
-// ✅ راوت افتراضي لفحص السيرفر
+
+// ✅ فحص السيرفر
 app.get('/', (req, res) => {
   res.send('Loom server is running...');
 });

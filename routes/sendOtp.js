@@ -107,4 +107,35 @@ router.post('/verify-otp-register', async (req, res) => {
   }
 });
 
+// ✅ التحقق من الرمز لتغيير رقم الهاتف
+router.post('/verify-otp-change-phone', async (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) {
+    return res.status(400).json({ message: 'رقم الهاتف والرمز مطلوبان' });
+  }
+
+  const formattedPhone = normalizePhoneNumber(phone);
+
+  try {
+    const storedOtp = await redisClient.get(`otp:${formattedPhone}`);
+    if (!storedOtp) {
+      return res.status(400).json({ message: 'انتهت صلاحية الرمز أو غير موجود' });
+    }
+
+    if (storedOtp !== code) {
+      return res.status(401).json({ message: 'رمز التحقق غير صحيح' });
+    }
+
+    await redisClient.del(`otp:${formattedPhone}`);
+
+    return res.status(200).json({
+      message: 'تم التحقق من الرمز بنجاح ✅',
+      phone: formattedPhone,
+    });
+  } catch (error) {
+    console.error('OTP Change Phone Verify Error:', error.message);
+    return res.status(500).json({ message: 'حدث خطأ أثناء التحقق من الرمز' });
+  }
+});
+
 module.exports = router;

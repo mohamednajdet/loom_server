@@ -61,7 +61,7 @@ router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) =>
   }
 });
 
-// ✅ جلب المنتجات مع الفلاتر + discountedPrice
+// ✅ جلب كل المنتجات مع الفلاتر + discountedPrice
 router.get('/', async (req, res) => {
   try {
     const { gender, category, min, max } = req.query;
@@ -88,6 +88,25 @@ router.get('/', async (req, res) => {
     res.status(200).json(updatedProducts);
   } catch (error) {
     res.status(500).json({ message: 'حدث خطأ أثناء جلب البيانات', error: error.message });
+  }
+});
+
+// ✅ جلب منتج واحد حسب ID ← ضروري للمفضلة
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: 'المنتج غير موجود' });
+    }
+
+    const discountedPrice = product.price - (product.price * (product.discount || 0) / 100);
+
+    res.status(200).json({
+      ...product._doc,
+      discountedPrice: Math.round(discountedPrice),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'فشل في جلب المنتج', error: error.message });
   }
 });
 

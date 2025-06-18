@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { verifyUser } = require('../middleware/authMiddleware');
 
 // ✅ إنشاء حساب جديد
 router.post('/register', async (req, res) => {
@@ -177,6 +178,40 @@ router.post('/check-phone', async (req, res) => {
   } catch (error) {
     console.error('Check Phone Error:', error);
     res.status(500).json({ message: 'فشل التحقق من رقم الهاتف', error: error.message });
+  }
+});
+
+// ✅ تحديث رقم الهاتف
+router.put('/update-phone', verifyUser, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { newPhone } = req.body;
+
+    if (!newPhone || typeof newPhone !== 'string') {
+      return res.status(400).json({ message: 'رقم الهاتف الجديد مطلوب' });
+    }
+
+    const existingUser = await User.findOne({ phone: newPhone });
+    if (existingUser && existingUser._id.toString() !== userId) {
+      return res.status(409).json({ message: 'رقم الهاتف مستخدم بالفعل' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { phone: newPhone },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
+
+    res.status(200).json({ message: 'تم تحديث رقم الهاتف بنجاح', phone: user.phone });
+  } catch (error) {
+    res.status(500).json({
+      message: 'فشل في تحديث رقم الهاتف',
+      error: error.message,
+    });
   }
 });
 

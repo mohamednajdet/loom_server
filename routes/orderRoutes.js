@@ -5,12 +5,12 @@ const User = require('../models/user');
 const Product = require('../models/product');
 const verifyAdmin = require('../middleware/verifyAdmin'); // ✅ حماية الأدمن
 
-// ✅ إنشاء الطلب (السيرفر يحسب totalPrice ويوثق السعر داخل كل منتج)
+// ✅ إنشاء الطلب مع عنوان التوصيل
 router.post('/create', async (req, res) => {
   try {
-    const { userId, products } = req.body;
+    const { userId, products, address } = req.body;
 
-    if (!userId || !products || products.length === 0) {
+    if (!userId || !products || products.length === 0 || !address) {
       return res.status(400).json({ message: 'البيانات غير مكتملة' });
     }
 
@@ -46,6 +46,7 @@ router.post('/create', async (req, res) => {
     const order = await Order.create({
       userId,
       products: fullProducts,
+      address, // ✅ تم تضمين عنوان التوصيل هنا
       totalPrice: Math.round(totalPrice)
     });
 
@@ -113,7 +114,7 @@ router.put('/update-status/:id', verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ إلغاء الطلب + الحظر التلقائي الذكي - للأدمن فقط
+// ✅ إلغاء الطلب + الحظر التلقائي - للأدمن فقط
 router.put('/cancel/:orderId', verifyAdmin, async (req, res) => {
   try {
     const { orderId } = req.params;
