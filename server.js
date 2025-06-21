@@ -1,5 +1,13 @@
 require('dotenv').config(); // الأفضل يكون بأول سطر
 
+// ✅ تهيئة firebase-admin (قبل أي شيء آخر يحتاج FCM)
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -16,7 +24,7 @@ const mapboxRoutes = require('./routes/mapboxRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes'); // ✅ راوت الشكاوى
 const surveyRoutes = require('./routes/surveyRoutes'); // ✅  راوت الاستبيانات
-
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -40,8 +48,8 @@ app.use('/api/cart', cartRoutes);            // السلة
 app.use('/api/mapbox', mapboxRoutes);        // خريطة
 app.use('/api/addresses', addressRoutes);    // العناوين
 app.use('/api/feedback', feedbackRoutes);    // ✅ الشكاوى والاقتراحات
-app.use('/api/surveys', surveyRoutes); // لاحظ جمع surveys
-
+app.use('/api/surveys', surveyRoutes);       // ✅ الاستبيانات
+app.use('/api/notifications', notificationRoutes);
 
 // ✅ فحص السيرفر
 app.get('/', (req, res) => {

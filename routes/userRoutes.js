@@ -214,5 +214,64 @@ router.put('/update-phone', verifyUser, async (req, res) => {
     });
   }
 });
+// ✅ تحديث FCM Token الخاص بالمستخدم (للإشعارات الذكية)
+router.post('/update-fcm-token', verifyUser, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { fcmToken } = req.body;
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'FCM Token مطلوب' });
+    }
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { fcmToken },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
+    res.status(200).json({ message: 'تم تحديث FCM Token', fcmToken });
+  } catch (error) {
+    res.status(500).json({ message: 'فشل تحديث FCM Token', error: error.message });
+  }
+});
+// ✅ جلب إعدادات الإشعارات للمستخدم
+router.get('/notification-settings', verifyUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    res.status(200).json({ notificationSettings: user.notificationSettings });
+  } catch (error) {
+    res.status(500).json({
+      message: 'فشل في جلب إعدادات الإشعارات',
+      error: error.message,
+    });
+  }
+});
+// ✅ تحديث إعدادات الإشعارات للمستخدم
+router.put('/notification-settings', verifyUser, async (req, res) => {
+  try {
+    const { notificationSettings } = req.body;
+    if (!notificationSettings) {
+      return res.status(400).json({ message: 'notificationSettings مطلوب' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { notificationSettings },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    res.status(200).json({ message: 'تم تحديث إعدادات الإشعارات بنجاح', notificationSettings: user.notificationSettings });
+  } catch (error) {
+    res.status(500).json({
+      message: 'فشل في تحديث إعدادات الإشعارات',
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

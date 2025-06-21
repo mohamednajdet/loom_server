@@ -3,7 +3,7 @@ const router = express.Router();
 const Feedback = require('../models/Feedback');
 const { verifyUser } = require('../middleware/authMiddleware'); // ✅ استدعاء
 
-router.post('/feedback', verifyUser, async (req, res) => {
+router.post('/', verifyUser, async (req, res) => {
   try {
     const { message } = req.body;
     const userId = req.userId; // ✅ مأخوذ من التوكن

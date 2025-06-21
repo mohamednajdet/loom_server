@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'], // نحدد نوع الدور
+    enum: ['user', 'admin'],
     default: 'user',
   },
   isBanned: {
@@ -34,6 +34,17 @@ const userSchema = new mongoose.Schema({
       ref: 'Product',
     },
   ],
+  // ✅ إضافة حقل fcmToken لتخزين توكن الإشعارات
+  fcmToken: {
+    type: String,
+    default: null,
+  },
+  // ✅ إعدادات الإشعارات بشكل كائن
+  notificationSettings: {
+    orderStatus: { type: Boolean, default: true },
+    deals:      { type: Boolean, default: true },
+    general:    { type: Boolean, default: true },
+  },
   createdAt: {
     type: Date,
     default: Date.now,

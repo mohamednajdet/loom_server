@@ -3,9 +3,10 @@ const router = express.Router();
 const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
-const verifyAdmin = require('../middleware/verifyAdmin'); // ✅ حماية الأدمن
+const verifyAdmin = require('../middleware/verifyAdmin');
+const admin = require('firebase-admin'); // لإرسال الإشعارات
 
-// ✅ إنشاء الطلب مع عنوان التوصيل
+// ✅ إنشاء الطلب مع إشعار تلقائي
 router.post('/create', async (req, res) => {
   try {
     const { userId, products, address } = req.body;
@@ -46,9 +47,24 @@ router.post('/create', async (req, res) => {
     const order = await Order.create({
       userId,
       products: fullProducts,
-      address, // ✅ تم تضمين عنوان التوصيل هنا
+      address,
       totalPrice: Math.round(totalPrice)
     });
+
+    // 🟡 إشعار تلقائي عند إنشاء الطلب (إذا مفعل إشعارات حالة الطلب)
+    if (
+      userExists.fcmToken &&
+      (!userExists.notificationSettings || userExists.notificationSettings.orderStatus !== false)
+    ) {
+      await admin.messaging().send({
+        token: userExists.fcmToken,
+        notification: {
+          title: 'تم استلام طلبك! 🎉',
+          body: 'طلبك وصلنه، ونباشر بتحضيره بأقرب وقت.',
+        },
+        data: { type: 'order_created' }
+      });
+    }
 
     res.status(201).json({ message: 'تم إنشاء الطلب بنجاح', order });
   } catch (error) {
@@ -56,40 +72,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// ✅ عرض جميع الطلبات - للأدمن فقط
-router.get('/', verifyAdmin, async (req, res) => {
-  try {
-    const { status } = req.query;
-    let filter = {};
-    if (status) filter.status = status;
-
-    const orders = await Order.find(filter)
-      .populate('userId')
-      .populate('products.productId')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: 'فشل في جلب الطلبات', error: error.message });
-  }
-});
-
-// ✅ عرض الطلبات الخاصة بمستخدم معيّن
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const orders = await Order.find({ userId })
-      .populate('products.productId')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: 'فشل في جلب الطلبات الخاصة بالمستخدم', error: error.message });
-  }
-});
-
-// ✅ تحديث حالة الطلب - للأدمن فقط
+// ✅ تحديث حالة الطلب + إشعار
 router.put('/update-status/:id', verifyAdmin, async (req, res) => {
   try {
     const { status } = req.body;
@@ -102,10 +85,32 @@ router.put('/update-status/:id', verifyAdmin, async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate('userId');
 
     if (!updatedOrder) {
       return res.status(404).json({ message: 'الطلب غير موجود' });
+    }
+
+    // 🟡 إشعار عند تحديث الحالة (إذا مفعل إشعارات حالة الطلب)
+    if (
+      updatedOrder.userId?.fcmToken &&
+      (!updatedOrder.userId.notificationSettings || updatedOrder.userId.notificationSettings.orderStatus !== false)
+    ) {
+      let statusMessage = {
+        shipped: 'طلبك طلع للتوصيل 🚚',
+        delivered: 'طلبك وصل بخير وسلامة 🎁',
+        pending: 'طلبك قيد المراجعة ⏳',
+        cancelled: 'طلبك انلغى، نعتذر 😔',
+      };
+
+      await admin.messaging().send({
+        token: updatedOrder.userId.fcmToken,
+        notification: {
+          title: 'تحديث حالة الطلب',
+          body: statusMessage[status] || 'تم تحديث طلبك',
+        },
+        data: { type: 'order_status', status }
+      });
     }
 
     res.status(200).json({ message: 'تم تحديث حالة الطلب بنجاح', order: updatedOrder });
@@ -114,15 +119,12 @@ router.put('/update-status/:id', verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ إلغاء الطلب + الحظر التلقائي - للأدمن فقط
+// ✅ إلغاء الطلب + إشعار
 router.put('/cancel/:orderId', verifyAdmin, async (req, res) => {
   try {
     const { orderId } = req.params;
-
     const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: 'الطلب غير موجود' });
-    }
+    if (!order) return res.status(404).json({ message: 'الطلب غير موجود' });
 
     order.status = 'cancelled';
     order.cancelledByAdmin = true;
@@ -135,9 +137,23 @@ router.put('/cancel/:orderId', verifyAdmin, async (req, res) => {
     });
 
     const user = await User.findById(order.userId);
-
     if (cancelledCount >= 2 && !user.bannedByAdmin) {
       await User.findByIdAndUpdate(order.userId, { isBanned: true });
+    }
+
+    // 🟡 إشعار عند إلغاء الطلب (إذا مفعل إشعارات حالة الطلب)
+    if (
+      user?.fcmToken &&
+      (!user.notificationSettings || user.notificationSettings.orderStatus !== false)
+    ) {
+      await admin.messaging().send({
+        token: user.fcmToken,
+        notification: {
+          title: 'طلبك انلغى ❌',
+          body: 'نعتذر، تم إلغاء الطلب من قبل الإدارة.',
+        },
+        data: { type: 'order_cancelled' }
+      });
     }
 
     res.status(200).json({
@@ -148,23 +164,6 @@ router.put('/cancel/:orderId', verifyAdmin, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'فشل في إلغاء الطلب', error: error.message });
-  }
-});
-
-// ✅ عدد الطلبات الملغية لمستخدم معيّن - للأدمن فقط
-router.get('/cancelled-count/:userId', verifyAdmin, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const count = await Order.countDocuments({
-      userId,
-      status: 'cancelled',
-      cancelledByAdmin: true
-    });
-
-    res.status(200).json({ cancelledCount: count });
-  } catch (error) {
-    res.status(500).json({ message: 'فشل في جلب عدد الطلبات الملغية', error: error.message });
   }
 });
 
