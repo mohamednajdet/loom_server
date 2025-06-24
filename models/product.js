@@ -10,7 +10,7 @@ const productSchema = new mongoose.Schema({
     enum: ['male', 'female', 'boy', 'girl'],
     required: true
   },
-  category: {
+  type: { 
     type: String,
     required: true
   },
@@ -20,7 +20,7 @@ const productSchema = new mongoose.Schema({
   },
   discount: {
     type: Number,
-    default: 0, // النسبة المئوية للتخفيض (مثلاً 20 تعني 20%)
+    default: 0,
     min: 0,
     max: 100
   },

@@ -1,3 +1,4 @@
+// السطور من البداية تبقى نفسها
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -6,6 +7,8 @@ const cloudinary = require('cloudinary').v2;
 const Product = require('../models/product');
 const User = require('../models/user');
 const verifyAdmin = require('../middleware/verifyAdmin');
+
+// cloudinary config (بدون تغيير)
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -32,7 +35,7 @@ const streamUpload = (buffer) => {
 // ✅ إضافة منتج جديد
 router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) => {
   try {
-    const { name, gender, category, price, sizes, colors, discount } = req.body;
+    const { name, gender, type, price, sizes, colors, discount } = req.body;
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'يجب إرفاق صورة واحدة على الأقل' });
@@ -47,7 +50,7 @@ router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) =>
     const product = await Product.create({
       name,
       gender,
-      category,
+      type,
       price,
       discount: !isNaN(parseFloat(discount)) ? parseFloat(discount) : 0,
       sizes: sizes ? JSON.parse(sizes) : [],
@@ -61,14 +64,71 @@ router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) =>
   }
 });
 
-// ✅ جلب كل المنتجات مع الفلاتر + discountedPrice
-router.get('/', async (req, res) => {
+// ✅ دالة تحويل للـ query
+const parseArray = (param) => {
+  if (!param) return undefined;
+  if (Array.isArray(param)) return param;
+  if (typeof param === 'string') return param.split(',');
+  return undefined;
+};
+
+// ✅ بحث مع فلاتر
+router.get('/search', async (req, res) => {
   try {
-    const { gender, category, min, max } = req.query;
+    const { q, types, genders, sizes, min, max } = req.query;
 
     let filter = {};
-    if (gender) filter.gender = gender;
-    if (category) filter.category = category;
+
+    if (q && q.trim() !== '') {
+      const regex = new RegExp(q, 'i');
+      filter.$or = [{ name: regex }, { type: regex }];
+    }
+
+    const genderArray = parseArray(genders);
+    const typeArray = parseArray(types);
+    const sizeArray = parseArray(sizes);
+
+    if (genderArray) filter.gender = { $in: genderArray };
+    if (typeArray) filter.type = { $in: typeArray };
+    if (sizeArray) filter.sizes = { $in: sizeArray };
+
+    if (min || max) {
+      filter.price = {};
+      if (min) filter.price.$gte = parseFloat(min);
+      if (max) filter.price.$lte = parseFloat(max);
+    }
+
+    const products = await Product.find(filter).sort({ createdAt: -1 });
+
+    const updatedProducts = products.map(product => {
+      const discountedPrice = product.price - (product.price * (product.discount || 0) / 100);
+      return {
+        ...product._doc,
+        discountedPrice: Math.round(discountedPrice)
+      };
+    });
+
+    res.status(200).json(updatedProducts);
+  } catch (error) {
+    res.status(500).json({ message: 'فشل البحث عن المنتجات', error: error.message });
+  }
+});
+
+// ✅ جلب الكل مع فلاتر
+router.get('/', async (req, res) => {
+  try {
+    const { gender, type, size, min, max } = req.query;
+
+    let filter = {};
+
+    const genderArray = parseArray(gender);
+    const typeArray = parseArray(type);
+    const sizeArray = parseArray(size);
+
+    if (genderArray) filter.gender = { $in: genderArray };
+    if (typeArray) filter.type = { $in: typeArray };
+    if (sizeArray) filter.sizes = { $in: sizeArray };
+
     if (min || max) {
       filter.price = {};
       if (min) filter.price.$gte = parseFloat(min);
@@ -91,7 +151,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ✅ جلب منتج واحد حسب ID ← ضروري للمفضلة
+// ✅ جلب منتج حسب ID
 router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -100,11 +160,7 @@ router.get('/:id', async (req, res) => {
     }
 
     const discountedPrice = product.price - (product.price * (product.discount || 0) / 100);
-
-    res.status(200).json({
-      ...product._doc,
-      discountedPrice: Math.round(discountedPrice),
-    });
+    res.status(200).json({ ...product._doc, discountedPrice: Math.round(discountedPrice) });
   } catch (error) {
     res.status(500).json({ message: 'فشل في جلب المنتج', error: error.message });
   }
@@ -114,11 +170,11 @@ router.get('/:id', async (req, res) => {
 router.put('/edit/:id', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, gender, category, price, sizes, colors, discount } = req.body;
+    const { name, gender, type, price, sizes, colors, discount } = req.body;
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      { name, gender, category, price, sizes, colors, discount },
+      { name, gender, type, price, sizes, colors, discount },
       { new: true }
     );
 
@@ -142,11 +198,7 @@ router.delete('/delete/:id', verifyAdmin, async (req, res) => {
       return res.status(404).json({ message: 'المنتج غير موجود' });
     }
 
-    // إزالة المنتج من المفضلات لكل المستخدمين
-    await User.updateMany(
-      { favorites: id },
-      { $pull: { favorites: id } }
-    );
+    await User.updateMany({ favorites: id }, { $pull: { favorites: id } });
 
     res.status(200).json({ message: 'تم حذف المنتج بنجاح وتمت إزالته من مفضلات المستخدمين' });
   } catch (error) {
