@@ -1,4 +1,3 @@
-// السطور من البداية تبقى نفسها
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -8,7 +7,6 @@ const Product = require('../models/product');
 const User = require('../models/user');
 const verifyAdmin = require('../middleware/verifyAdmin');
 
-// cloudinary config (بدون تغيير)
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -64,7 +62,6 @@ router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) =>
   }
 });
 
-// ✅ دالة تحويل للـ query
 const parseArray = (param) => {
   if (!param) return undefined;
   if (Array.isArray(param)) return param;
