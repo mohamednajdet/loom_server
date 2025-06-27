@@ -39,13 +39,24 @@ router.delete('/remove/:productId', verifyUser, async (req, res) => {
   }
 });
 
-// ✅ جلب قائمة المفضلة
+// ✅ جلب قائمة المفضلة مع discountedPrice
 router.get('/', verifyUser, async (req, res) => {
   try {
     const user = await User.findById(req.userId).populate('favorites');
     if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
 
-    res.status(200).json({ favorites: user.favorites });
+    // معالجة السعر المخفض
+    const favoritesWithDiscount = user.favorites.map(prod => {
+      const price = prod.price || 0;
+      const discount = prod.discount || 0;
+      const discountedPrice = Math.round(price - (price * discount / 100));
+      return {
+        ...prod._doc,
+        discountedPrice,
+      };
+    });
+
+    res.status(200).json({ favorites: favoritesWithDiscount });
   } catch (err) {
     res.status(500).json({ message: 'فشل في جلب قائمة المفضلة', error: err.message });
   }

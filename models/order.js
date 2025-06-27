@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
+  orderNumber: {
+    type: Number,
+    unique: true,
+    required: true,
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -30,6 +35,9 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true,
       },
+      originalPrice: { type: Number }, // جديد - اختياري
+      discountedPrice: { type: Number }, // جديد - اختياري
+      discount: { type: Number }, // جديد - اختياري
     },
   ],
   address: {
@@ -39,6 +47,11 @@ const orderSchema = new mongoose.Schema({
   totalPrice: {
     type: Number,
     required: true,
+  },
+  deliveryFee: {
+    type: Number,
+    required: true,
+    default: 0,
   },
   status: {
     type: String,

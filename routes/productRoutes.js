@@ -7,7 +7,6 @@ const Product = require('../models/product');
 const User = require('../models/user');
 const verifyAdmin = require('../middleware/verifyAdmin');
 
-
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -33,7 +32,7 @@ const streamUpload = (buffer) => {
 // ✅ إضافة منتج جديد
 router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) => {
   try {
-    const { name, gender, type, price, sizes, colors, discount } = req.body;
+    const { name, gender, type, price, sizes, colors, discount, categoryType } = req.body;
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'يجب إرفاق صورة واحدة على الأقل' });
@@ -54,6 +53,7 @@ router.post('/add', upload.array('images', 20), verifyAdmin, async (req, res) =>
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       images: uploadedImages,
+      categoryType // << تمت إضافتها هنا!
     });
 
     res.status(201).json({ message: 'تم إضافة المنتج بنجاح', product });
@@ -72,7 +72,7 @@ const parseArray = (param) => {
 // ✅ بحث مع فلاتر
 router.get('/search', async (req, res) => {
   try {
-    const { q, types, genders, sizes, min, max } = req.query;
+    const { q, types, genders, sizes, min, max, categoryType } = req.query;
 
     let filter = {};
 
@@ -84,10 +84,12 @@ router.get('/search', async (req, res) => {
     const genderArray = parseArray(genders);
     const typeArray = parseArray(types);
     const sizeArray = parseArray(sizes);
+    const categoryTypeArray = parseArray(categoryType);
 
     if (genderArray) filter.gender = { $in: genderArray };
     if (typeArray) filter.type = { $in: typeArray };
     if (sizeArray) filter.sizes = { $in: sizeArray };
+    if (categoryTypeArray) filter.categoryType = { $in: categoryTypeArray };
 
     if (min || max) {
       filter.price = {};
@@ -114,17 +116,19 @@ router.get('/search', async (req, res) => {
 // ✅ جلب الكل مع فلاتر
 router.get('/', async (req, res) => {
   try {
-    const { gender, type, size, min, max } = req.query;
+    const { gender, type, size, min, max, categoryType } = req.query;
 
     let filter = {};
 
     const genderArray = parseArray(gender);
     const typeArray = parseArray(type);
     const sizeArray = parseArray(size);
+    const categoryTypeArray = parseArray(categoryType);
 
     if (genderArray) filter.gender = { $in: genderArray };
     if (typeArray) filter.type = { $in: typeArray };
     if (sizeArray) filter.sizes = { $in: sizeArray };
+    if (categoryTypeArray) filter.categoryType = { $in: categoryTypeArray };
 
     if (min || max) {
       filter.price = {};
@@ -167,11 +171,11 @@ router.get('/:id', async (req, res) => {
 router.put('/edit/:id', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, gender, type, price, sizes, colors, discount } = req.body;
+    const { name, gender, type, price, sizes, colors, discount, categoryType } = req.body;
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      { name, gender, type, price, sizes, colors, discount },
+      { name, gender, type, price, sizes, colors, discount, categoryType },
       { new: true }
     );
 
